@@ -9,13 +9,13 @@ from litex.build.openocd import OpenOCD
 
 _io = [
     # Clk / Rst
-    ("clk125", 0, Pins("Y18"), IOStandard("LVCMOS18")),
+    ("clk_pl", 0, Pins("Y18"), IOStandard("LVCMOS18")),
 
     # Leds
     ("user_led", 0, Pins("G3"), IOStandard("LVCMOS18")),
-    ("user_led", 1, Pins("AA19"), IOStandard("LVCMOS18")),
-    ("user_led", 2, Pins("AA20"), IOStandard("LVCMOS18")),
-    ("user_led", 3, Pins("G4"), IOStandard("LVCMOS18")),
+    ("user_led", 1, Pins("AA19"), IOStandard("LVCMOS33")),
+    ("user_led", 2, Pins("AA20"), IOStandard("LVCMOS33")),
+    ("user_led", 3, Pins("AB21"), IOStandard("LVCMOS33")),
 
    
     # Switches
@@ -238,8 +238,8 @@ ps7_config = {
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(Xilinx7SeriesPlatform):
-    default_clk_name   = "clk125"
-    default_clk_period = 1e9/125e6
+    default_clk_name   = "clk_pl"
+    default_clk_period = 1e9/100e6
 
     def __init__(self, variant="z7-30", toolchain="vivado"):
         device = {
@@ -254,14 +254,16 @@ class Platform(Xilinx7SeriesPlatform):
         self.add_platform_command("set_property IOSTANDARD LVCMOS18 [get_ports -of_objects [get_iobanks 34]]")
         self.add_platform_command("set_property IOSTANDARD LVCMOS18 [get_ports -of_objects [get_iobanks 35]]")
         self.add_platform_command("set_property IOSTANDARD LVCMOS33 [get_ports -of_objects [get_iobanks 13]]")
+        self.toolchain.bitstream_commands = ["set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]", ]
+
 
     def create_programmer(self, name='vivado'):
         if name == 'openocd':
-            return OpenOCD("openocd_xc7_ft2232.cfg")
+            return OpenOCD(config="picozed-tigard.cfg")
             # return OpenOCD(config="board/digilent_zedboard.cfg")
         elif name == 'vivado':
             return VivadoProgrammer()
 
     def do_finalize(self, fragment):
         Xilinx7SeriesPlatform.do_finalize(self, fragment)
-        self.add_period_constraint(self.lookup_request("clk125", loose=True), 1e9/125e6)
+        self.add_period_constraint(self.lookup_request("clk_pl", loose=True), 1e9/100e6)

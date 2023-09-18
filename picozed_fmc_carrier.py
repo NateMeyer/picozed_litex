@@ -63,12 +63,12 @@ class _CRG(LiteXModule):
             self.comb += ResetSignal("sys").eq(ResetSignal("ps7") | self.rst)
         else:
             # Clk.
-            clk125 = platform.request("clk125")
+            clk100 = platform.request("clk_pl")
 
             # PLL.
             self.pll = pll = S7PLL(speedgrade=-1)
             self.comb += pll.reset.eq(self.rst)
-            pll.register_clkin(clk125, 125e6)
+            pll.register_clkin(clk100, 100e6)
             pll.create_clkout(self.cd_sys, sys_clk_freq)
             # Ignore sys_clk to pll.clkin path created by SoC's rst.
             platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin)
@@ -77,13 +77,14 @@ class _CRG(LiteXModule):
 
 
 class BaseSoC(SoCCore):
-    def __init__(self, variant="z7-20", toolchain="vivado", sys_clk_freq=125e6,
+    def __init__(self, variant="z7-30", toolchain="vivado", sys_clk_freq=100e6,
             with_led_chaser = True, with_jtagbone = True, with_pcie=True,
             **kwargs):
         platform = picozed_z7030.Platform(variant=variant, toolchain=toolchain)
 
         # CRG --------------------------------------------------------------------------------------
-        use_ps7_clk = (kwargs.get("cpu_type", None) == "zynq7000")
+        # use_ps7_clk = (kwargs.get("cpu_type", None) == "zynq7000")
+        use_ps7_clk = False
         self.crg = _CRG(platform, sys_clk_freq, use_ps7_clk)
 
         # SoCCore ----------------------------------------------------------------------------------
@@ -142,6 +143,12 @@ class BaseSoC(SoCCore):
                 bar0_size  = 0x20000)
             self.add_pcie(phy=self.pcie_phy, ndmas=1)
 
+             # ICAP (For FPGA reload over PCIe).
+            from litex.soc.cores.icap import ICAP
+            self.icap = ICAP()
+            self.icap.add_reload()
+            self.icap.add_timing_constraints(platform, sys_clk_freq, self.crg.cd_sys.clk)
+
     def finalize(self, *args, **kwargs):
         super(BaseSoC, self).finalize(*args, **kwargs)
         if self.cpu_type != "zynq7000":
@@ -195,7 +202,7 @@ def main():
     from litex.build.parser import LiteXArgumentParser
     parser = LiteXArgumentParser(platform=picozed_z7030.Platform, description="LiteX SoC on Picozed z7030")
     parser.add_target_argument("--variant",      default="z7-30",           help="Board variant (z7-15 or z7-30).")
-    parser.add_target_argument("--sys-clk-freq", default=125e6, type=float, help="System clock frequency.")
+    parser.add_target_argument("--sys-clk-freq", default=100e6, type=float, help="System clock frequency.")
     parser.set_defaults(cpu_type="zynq7000")
     parser.set_defaults(no_uart=True)
     parser.set_defaults(with_jtagbone=True)
@@ -214,6 +221,7 @@ def main():
         builder.add_software_package('libxil')
         builder.add_software_library('libxil')
         # generate_litepcie_software(soc, os.path.join(builder.output_dir, "driver"))
+
     if args.build:
         builder.build(**parser.toolchain_argdict)
 
