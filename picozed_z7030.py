@@ -2,8 +2,7 @@
 # License: BSD
 
 from litex.build.generic_platform import Pins, IOStandard, Subsignal
-from litex.build.xilinx import Xilinx7SeriesPlatform, VivadoProgrammer
-from litex.build.openocd import OpenOCD
+from litex.build.xilinx import Xilinx7SeriesPlatform
 
 # IOs ----------------------------------------------------------------------------------------------
 
@@ -16,11 +15,6 @@ _io = [
     ("user_led", 1, Pins("AA19"), IOStandard("LVCMOS33")),
     ("user_led", 2, Pins("AA20"), IOStandard("LVCMOS33")),
     ("user_led", 3, Pins("AB21"), IOStandard("LVCMOS33")),
-
-   
-    # Switches
-    # ("user_sw", 0, Pins("M20"), IOStandard("LVCMOS18")),
-    # ("user_sw", 1, Pins("M19"), IOStandard("LVCMOS18")),
 
     # Buttons
     # ("user_btn", 0, Pins("D19"), IOStandard("LVCMOS18")),
@@ -37,35 +31,6 @@ _io = [
     #     IOStandard("LVCMOS33"),
     # ),
 
-	# I2C
-    # ("i2c", 0,
-    #     Subsignal("scl",  Pins("P16")),
-    #     Subsignal("sda",  Pins("P15")),
-    #     IOStandard("LVCMOS33"),
-    # ),
-
-	# Audio
-    # ("audio", 0,
-    #     Subsignal("pwm", Pins("R18")), # FIXME
-    #     Subsignal("sd", Pins("T17")), # FIXME
-    #     IOStandard("LVCMOS33"),
-    # ),
-
-    # HDMI Out
-    # ("hdmi_out", 0,
-    #     Subsignal("clk_p",   Pins("L16"), IOStandard("TMDS_33")),
-    #     Subsignal("clk_n",   Pins("L17"), IOStandard("TMDS_33")),
-    #     Subsignal("data0_p", Pins("K17"), IOStandard("TMDS_33")),
-    #     Subsignal("data0_n", Pins("K18"), IOStandard("TMDS_33")),
-    #     Subsignal("data1_p", Pins("K19"), IOStandard("TMDS_33")),
-    #     Subsignal("data1_n", Pins("J19"), IOStandard("TMDS_33")),
-    #     Subsignal("data2_p", Pins("J18"), IOStandard("TMDS_33")),
-    #     Subsignal("data2_n", Pins("H18"), IOStandard("TMDS_33")),
-    #     Subsignal("scl",     Pins("M17"), IOStandard("LVCMOS33")),
-    #     Subsignal("sda",     Pins("M18"), IOStandard("LVCMOS33")),
-    #     Subsignal("cec",     Pins("G15"), IOStandard("LVCMOS33")),
-    #     Subsignal("hdp",     Pins("R19"), IOStandard("LVCMOS33")),
-    # ),
 
     # PCIE
     ("pcie_x1", 0,
@@ -114,61 +79,7 @@ _connectors = [
     # Bank 13
     # ("pmoda", "Y18 Y19 Y16 Y17 U18 U19 W18 W19"),
     # ("pmodb", "W14 Y14 T11 T10 V16 W16 V12 W13"),
-    # ("ck_io", {
-	# 	"ck_ioa"  : "Y13",
-
-        # Outer Digital Header
-		# "ck_io0"  : "T14",
-        # "ck_io1"  : "U12",
-        # "ck_io2"  : "U13",
-        # "ck_io3"  : "V13",
-        # "ck_io4"  : "V15",
-        # "ck_io5"  : "T15",
-        # "ck_io6"  : "R16",
-        # "ck_io7"  : "U17",
-        # "ck_io8"  : "V17",
-        # "ck_io9"  : "V18",
-        # "ck_io10" : "T16",
-        # "ck_io11" : "R17",
-        # "ck_io12" : "P18",
-        # "ck_io13" : "N17",
-
-		# Inner Digital Header
-        # Only for Arty Z7 20
-        # "ck_io26" : "U5",
-        # "ck_io27" : "V5",
-        # "ck_io28" : "V6",
-        # "ck_io29" : "U7",
-        # "ck_io30" : "V7",
-        # "ck_io31" : "U8",
-        # "ck_io32" : "V8",
-        # "ck_io33" : "V10",
-        # "ck_io34" : "W10",
-        # "ck_io35" : "W6",
-        # "ck_io36" : "Y6",
-        # "ck_io37" : "Y7",
-        # "ck_io38" : "W8",
-        # "ck_io39" : "Y8",
-        # "ck_io40" : "W9",
-        # "ck_io41" : "Y9",
-
-        # Outer Analog Header as Digital IO
-        # Only for Arty Z7 20
-        # "ck_a0" : "Y11",
-        # "ck_a1" : "Y12",
-        # "ck_a2" : "W11",
-        # "ck_a3" : "V11",
-        # "ck_a4" : "T5",
-        # "ck_a5" : "U10",
-
-        # Inner Analog Header as Digital IO
-    #     "ck_a6"  : "F19",
-    #     "ck_a7"  : "F20",
-    #     "ck_a8"  : "C20",
-    #     "ck_a9"  : "B20",
-    #     "ck_a10" : "B19",
-    #     "ck_a11" : "A20",
-	# }),
+    
     # ("XADC", {
         # Outer Analog Header
         # "vaux1_p"  : "E17",
@@ -217,14 +128,9 @@ ps7_config = {
     "PCW_QSPI_GRP_SINGLE_SS_ENABLE"      : "1",
     "PCW_QSPI_GRP_FBCLK_ENABLE"          : "1",
     "PCW_ENET0_PERIPHERAL_ENABLE"        : "0",
-    # "PCW_ENET0_ENET0_IO"                 : "MIO 16 .. 27",
-    # "PCW_ENET0_GRP_MDIO_ENABLE"          : "1",
-    # "PCW_ENET0_GRP_MDIO_IO"              : "MIO 52 .. 53",
-    # "PCW_ENET0_RESET_ENABLE"             : "1",
-    # "PCW_ENET0_RESET_IO"                 : "MIO 9",
-    "PCW_SD0_PERIPHERAL_ENABLE"          : "0",
-    # "PCW_SD0_GRP_CD_ENABLE"              : "1",
-    # "PCW_SD0_GRP_CD_IO"                  : "MIO 47",
+    "PCW_ENET0_ENET0_IO"                 : "MIO 16 .. 27",
+    "PCW_ENET0_GRP_MDIO_ENABLE"          : "1",
+    "PCW_ENET0_GRP_MDIO_IO"              : "MIO 52 .. 53",
     "PCW_UART0_PERIPHERAL_ENABLE"        : "1",
     "PCW_UART0_UART0_IO"                 : "MIO 48 .. 49",
     "PCW_USB0_PERIPHERAL_ENABLE"         : "1",
@@ -241,13 +147,9 @@ class Platform(Xilinx7SeriesPlatform):
     default_clk_name   = "clk_pl"
     default_clk_period = 1e9/100e6
 
-    def __init__(self, variant="z7-30", toolchain="vivado"):
-        device = {
-            "z7-30": "xc7z030sbg485-1"
-        }[variant]
-        self.board = {
-            "z7-30": "picozed_z7_30"
-        }[variant]
+    def __init__(self, toolchain="vivado"):
+        device = "xc7z030sbg485-1"
+        self.board = "picozed_z7_30"
 
         Xilinx7SeriesPlatform.__init__(self, device, _io, _connectors, toolchain=toolchain)
         self.ps7_config = ps7_config
@@ -255,14 +157,6 @@ class Platform(Xilinx7SeriesPlatform):
         self.add_platform_command("set_property IOSTANDARD LVCMOS18 [get_ports -of_objects [get_iobanks 35]]")
         self.add_platform_command("set_property IOSTANDARD LVCMOS33 [get_ports -of_objects [get_iobanks 13]]")
         self.toolchain.bitstream_commands = ["set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]", ]
-
-
-    def create_programmer(self, name='vivado'):
-        if name == 'openocd':
-            return OpenOCD(config="picozed-tigard.cfg")
-            # return OpenOCD(config="board/digilent_zedboard.cfg")
-        elif name == 'vivado':
-            return VivadoProgrammer()
 
     def do_finalize(self, fragment):
         Xilinx7SeriesPlatform.do_finalize(self, fragment)

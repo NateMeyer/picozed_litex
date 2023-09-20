@@ -31,9 +31,8 @@ from migen import *
 from litex.gen import *
 
 import picozed_z7030
-# from litex.build import tools
-# from litex.build.xilinx import common as xil_common
 from litex.build.tools import write_to_file
+from litex.build.openocd import OpenOCD
 
 from litex.soc.interconnect import axi
 from litex.soc.interconnect import wishbone
@@ -43,9 +42,11 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc import SoCRegion
 from litex.soc.integration.builder import *
 from litex.soc.cores.led import LedChaser
-from litedram.phy import s7ddrphy
 
 from litepcie.phy.s7pciephy import S7PCIEPHY
+from litepcie.core import LitePCIeEndpoint, LitePCIeMSI
+from litepcie.frontend.dma import LitePCIeDMA
+from litepcie.frontend.wishbone import LitePCIeWishboneBridge
 from litepcie.software import generate_litepcie_software
 
 # CRG ----------------------------------------------------------------------------------------------
@@ -55,8 +56,6 @@ class _CRG(LiteXModule):
     def __init__(self, platform, sys_clk_freq, use_ps7_clk=False):
         self.rst    = Signal()
         self.cd_sys = ClockDomain()
-
-        # # #
 
         if use_ps7_clk:
             self.comb += ClockSignal("sys").eq(ClockSignal("ps7"))
@@ -77,10 +76,10 @@ class _CRG(LiteXModule):
 
 
 class BaseSoC(SoCCore):
-    def __init__(self, variant="z7-30", toolchain="vivado", sys_clk_freq=100e6,
+    def __init__(self, toolchain="vivado", sys_clk_freq=125e6,
             with_led_chaser = True, with_jtagbone = True, with_pcie=True,
             **kwargs):
-        platform = picozed_z7030.Platform(variant=variant, toolchain=toolchain)
+        platform = picozed_z7030.Platform(toolchain=toolchain)
 
         # CRG --------------------------------------------------------------------------------------
         # use_ps7_clk = (kwargs.get("cpu_type", None) == "zynq7000")
@@ -127,8 +126,6 @@ class BaseSoC(SoCCore):
                 size   = 256 * 1024 * 1024 // 8,
                 linker = True)
             )
-            self.constants["CONFIG_CLOCK_FREQUENCY"] = 666666687
-            # self.bus.add_region("flash",  SoCRegion(origin=0xFC00_0000, size=0x4_0000, mode="rwx"))
 
         # Leds -------------------------------------------------------------------------------------
         if with_led_chaser:
@@ -137,17 +134,55 @@ class BaseSoC(SoCCore):
                 sys_clk_freq = sys_clk_freq)
             
         # PCIe -------------------------------------------------------------------------------------
-        if with_pcie:
-            self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
-                data_width = 64,
-                bar0_size  = 0x20000)
-            self.add_pcie(phy=self.pcie_phy, ndmas=1)
+        # PHY
+        self.pcie_phy = S7PCIEPHY(platform, platform.request(f"pcie_x1"),
+            data_width = 64,
+            bar0_size  = 0x20000,
+        )
+        self.pcie_phy.add_ltssm_tracer()
 
-             # ICAP (For FPGA reload over PCIe).
-            from litex.soc.cores.icap import ICAP
-            self.icap = ICAP()
-            self.icap.add_reload()
-            self.icap.add_timing_constraints(platform, sys_clk_freq, self.crg.cd_sys.clk)
+        # Endpoint
+        self.pcie_endpoint = LitePCIeEndpoint(self.pcie_phy,
+            endianness           = "big",
+            max_pending_requests = 8
+        )
+
+        # Wishbone bridge
+        self.pcie_bridge = LitePCIeWishboneBridge(self.pcie_endpoint,
+            base_address = self.mem_map["csr"])
+        self.bus.add_master(master=self.pcie_bridge.wishbone)
+
+        # DMA0
+        self.pcie_dma0 = LitePCIeDMA(self.pcie_phy, self.pcie_endpoint,
+            with_buffering = True, buffering_depth=1024,
+            with_loopback  = True)
+
+        # DMA1
+        self.pcie_dma1 = LitePCIeDMA(self.pcie_phy, self.pcie_endpoint,
+            with_buffering = True, buffering_depth=1024,
+            with_loopback  = True)
+
+        self.add_constant("DMA_CHANNELS", 2)
+        self.add_constant("DMA_ADDR_WIDTH", 32)
+
+        # MSI
+        self.pcie_msi = LitePCIeMSI()
+        self.comb += self.pcie_msi.source.connect(self.pcie_phy.msi)
+        self.interrupts = {
+            "PCIE_DMA0_WRITER":    self.pcie_dma0.writer.irq,
+            "PCIE_DMA0_READER":    self.pcie_dma0.reader.irq,
+            "PCIE_DMA1_WRITER":    self.pcie_dma1.writer.irq,
+            "PCIE_DMA1_READER":    self.pcie_dma1.reader.irq,
+        }
+        for i, (k, v) in enumerate(sorted(self.interrupts.items())):
+            self.comb += self.pcie_msi.irqs[i].eq(v)
+            self.add_constant(k + "_INTERRUPT", i)
+
+            # ICAP (For FPGA reload over PCIe).
+        from litex.soc.cores.icap import ICAP
+        self.icap = ICAP()
+        self.icap.add_reload()
+        self.icap.add_timing_constraints(platform, sys_clk_freq, self.crg.cd_sys.clk)
 
     def finalize(self, *args, **kwargs):
         super(BaseSoC, self).finalize(*args, **kwargs)
@@ -201,8 +236,8 @@ class BaseSoC(SoCCore):
 def main():
     from litex.build.parser import LiteXArgumentParser
     parser = LiteXArgumentParser(platform=picozed_z7030.Platform, description="LiteX SoC on Picozed z7030")
-    parser.add_target_argument("--variant",      default="z7-30",           help="Board variant (z7-15 or z7-30).")
-    parser.add_target_argument("--sys-clk-freq", default=100e6, type=float, help="System clock frequency.")
+    parser.add_target_argument("--sys-clk-freq", default=125e6, type=float, help="System clock frequency.")
+    parser.add_argument("--driver", action="store_true", help="Generate LitePCIe driver")
     parser.set_defaults(cpu_type="zynq7000")
     parser.set_defaults(no_uart=True)
     parser.set_defaults(with_jtagbone=True)
@@ -210,7 +245,6 @@ def main():
     args = parser.parse_args()
 
     soc = BaseSoC(
-        variant      = args.variant,
         toolchain    = args.toolchain,
         sys_clk_freq = args.sys_clk_freq,
         **parser.soc_argdict
@@ -220,13 +254,15 @@ def main():
         soc.builder = builder
         builder.add_software_package('libxil')
         builder.add_software_library('libxil')
-        # generate_litepcie_software(soc, os.path.join(builder.output_dir, "driver"))
 
     if args.build:
         builder.build(**parser.toolchain_argdict)
 
+    if args.driver:
+        generate_litepcie_software(soc, os.path.join(builder.output_dir, "driver"))
+
     if args.load:
-        prog = soc.platform.create_programmer("openocd")
+        prog = OpenOCD(config="picozed-tigard.cfg")
         prog.load_bitstream(builder.get_bitstream_filename(mode="sram"))
 
 if __name__ == "__main__":
