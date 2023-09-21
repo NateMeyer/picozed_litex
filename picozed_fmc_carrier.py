@@ -262,7 +262,7 @@ def main():
         generate_litepcie_software(soc, os.path.join(builder.output_dir, "driver"))
 
     if args.load:
-        prog = OpenOCD(config="picozed-tigard.cfg")
+        prog = OpenOCD(config="scripts/picozed-tigard.cfg")
         prog.load_bitstream(builder.get_bitstream_filename(mode="sram"))
 
 if __name__ == "__main__":

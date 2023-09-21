@@ -1,0 +1,3 @@
+all: {
+	build/picozed_z7030/gateware/picozed_z7030.bit
+}

@@ -1,0 +1,6 @@
+[submodule "ext_src/u-boot"]
+	path = ext_src/u-boot
+	url = https://github.com/u-boot/u-boot
+[submodule "ext_src/zynq-mkbootimage"]
+	path = ext_src/zynq-mkbootimage
+	url = https://github.com/antmicro/zynq-mkbootimage.git
