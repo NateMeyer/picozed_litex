@@ -76,8 +76,7 @@ class _CRG(LiteXModule):
 
 
 class BaseSoC(SoCCore):
-    def __init__(self, toolchain="vivado", sys_clk_freq=125e6,
-            with_led_chaser = True, with_jtagbone = True, with_pcie=True,
+    def __init__(self, toolchain="vivado", sys_clk_freq=125e6, with_led_chaser = True, with_pcie=True,
             **kwargs):
         platform = picozed_z7030.Platform(toolchain=toolchain)
 
@@ -95,10 +94,7 @@ class BaseSoC(SoCCore):
             }
         SoCCore.__init__(self, platform, sys_clk_freq, ident="LiteX SoC on Picozed Z7", **kwargs)
 
-        # JTAGBone ---------------------------------------------------------------------------------
-        if with_jtagbone:
-            self.add_jtagbone()
-
+       
         # Zynq7000 Integration ---------------------------------------------------------------------
         if kwargs.get("cpu_type", None) == "zynq7000":
             assert toolchain == "vivado", ' not tested / specific vivado cmds'
@@ -178,11 +174,10 @@ class BaseSoC(SoCCore):
             self.comb += self.pcie_msi.irqs[i].eq(v)
             self.add_constant(k + "_INTERRUPT", i)
 
-            # ICAP (For FPGA reload over PCIe).
-        from litex.soc.cores.icap import ICAP
-        self.icap = ICAP()
-        self.icap.add_reload()
-        self.icap.add_timing_constraints(platform, sys_clk_freq, self.crg.cd_sys.clk)
+        
+        # UARTBone ---------------------------------------------------------------------------------
+        platform.add_extension(picozed_z7030.uart_pmod_io("pmodz"))
+        self.add_uartbone(uart_name="pl_serial")
 
     def finalize(self, *args, **kwargs):
         super(BaseSoC, self).finalize(*args, **kwargs)
@@ -239,8 +234,7 @@ def main():
     parser.add_target_argument("--sys-clk-freq", default=125e6, type=float, help="System clock frequency.")
     parser.add_argument("--driver", action="store_true", help="Generate LitePCIe driver")
     parser.set_defaults(cpu_type="zynq7000")
-    parser.set_defaults(no_uart=True)
-    parser.set_defaults(with_jtagbone=True)
+    parser.set_defaults(soc_csv="csr.csv")
     parser.set_defaults(with_pcie=True)
     args = parser.parse_args()
 

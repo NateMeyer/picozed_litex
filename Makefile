@@ -22,7 +22,7 @@ $(firmware_elf):
 $(firmware_bin): $(firmware_elf)
 
 $(bitstream_file):
-	$(soc) --build --driver&& \
+	$(soc) --build --driver && \
 	grep -i "All user specified timing constraints are met" $(soc_dir)/gateware/vivado.log
 	test -f $@
 

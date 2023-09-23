@@ -1,0 +1,7 @@
+img: {
+	[bootloader] build/picozed_z7030/software/u-boot/spl/u-boot-spl.bin
+	[offset=0x20000] build/picozed_z7030/software/u-boot/u-boot.img
+	[offset=0x200000] build/picozed_z7030/gateware/picozed_z7030.bit
+	[offset=0x400000] build/picozed_z7030/software/bios/bios.bin
+	[offset=0x420000] build/picozed_z7030/boot.scr
+}

@@ -34,11 +34,11 @@ _io = [
 
     # PCIE
     ("pcie_x1", 0,
-        Subsignal("rx_n",       Pins("AB7")),
-        Subsignal("rx_p",       Pins("AA7")),
-        Subsignal("tx_n",       Pins("AB3")),
-        Subsignal("tx_p",       Pins("AA3")),
         Subsignal("rst_n",      Pins("V13"), IOStandard("LVCMOS33")),
+        Subsignal("rx_p",       Pins("AA7")),
+        Subsignal("rx_n",       Pins("AB7")),
+        Subsignal("tx_p",       Pins("AA3")),
+        Subsignal("tx_n",       Pins("AB3")),
         Subsignal("clk_n",      Pins("V9")),
         Subsignal("clk_p",      Pins("U9")),
     ),
@@ -77,8 +77,9 @@ _connectors = [
     #   N: 0  1  2  3  4  5  6  7
     # Pin: 1  2  3  4  7  8  9 10
     # Bank 13
-    # ("pmoda", "Y18 Y19 Y16 Y17 U18 U19 W18 W19"),
-    # ("pmodb", "W14 Y14 T11 T10 V16 W16 V12 W13"),
+    ("pmoda", "AA14 AA15 Y14 Y15 U19 V19 V18 W18"),
+    ("pmodb", "AA16 AA17 AA11 AB11 Y12 Y13 V11 W11"),
+    ("pmodz", "R17 T17 W12 W13 V16 W16 V15 W15")
     
     # ("XADC", {
         # Outer Analog Header
@@ -104,6 +105,15 @@ _connectors = [
         # "vaux8_n"  : "A19",
     # })
 ]
+
+def uart_pmod_io(pmod):
+    return [
+        ("pl_serial", 0,
+            Subsignal("tx", Pins(f"{pmod}:1")),
+            Subsignal("rx", Pins(f"{pmod}:2")),
+            IOStandard("LVCMOS33")
+        ),
+    ]
 
 # PS7 config ---------------------------------------------------------------------------------------
 
