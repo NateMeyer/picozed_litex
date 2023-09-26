@@ -3,28 +3,9 @@
 #
 # This file is part of LiteX-Boards.
 #
-# Copyright (c) 2021 Gwenhael Goavec-Merou <gwenhael.goavec-merou@trabucayre.com>
+# Copyright (c) 2023 Nate Meyer <nate.devel@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
-# Load bit/bios ------------------------------------------------------------------------------------
-#
-# 1/ tcl script:
-# connect
-# targets -set -filter {name =~ "ARM*#0"}
-# rst
-# stop
-# 
-# source build/digilent_arty_z7/gateware/digilent_arty_z7.srcs/sources_1/ip/Zynq/ps7_init.tcl
-# ps7_init
-# ps7_post_config
-# 
-# dow build/digilent_arty_z7/software/bios/bios.elf
-# fpga build/digilent_arty_z7/gateware/digilent_arty_z7.bit
-# con
-#
-# 2/ loading
-# xsct -nodisp ps7_boot.tcl
-# where ps7_boot.tcl is your script name
 
 from migen import *
 
@@ -81,8 +62,7 @@ class BaseSoC(SoCCore):
         platform = picozed_z7030.Platform(toolchain=toolchain)
 
         # CRG --------------------------------------------------------------------------------------
-        # use_ps7_clk = (kwargs.get("cpu_type", None) == "zynq7000")
-        use_ps7_clk = False
+        use_ps7_clk = (kwargs.get("cpu_type", None) == "zynq7000")
         self.crg = _CRG(platform, sys_clk_freq, use_ps7_clk)
 
         # SoCCore ----------------------------------------------------------------------------------
@@ -130,50 +110,21 @@ class BaseSoC(SoCCore):
                 sys_clk_freq = sys_clk_freq)
             
         # PCIe -------------------------------------------------------------------------------------
-        # PHY
-        self.pcie_phy = S7PCIEPHY(platform, platform.request(f"pcie_x1"),
-            data_width = 64,
-            bar0_size  = 0x20000,
-        )
-        self.pcie_phy.add_ltssm_tracer()
+        if with_pcie:
+            # PHY
+            self.pcie_phy = S7PCIEPHY(platform, platform.request(f"pcie_x1"),
+                data_width = 64,
+                bar0_size  = 0x20000,
+            )
+            self.pcie_phy.add_ltssm_tracer()
 
-        # Endpoint
-        self.pcie_endpoint = LitePCIeEndpoint(self.pcie_phy,
-            endianness           = "big",
-            max_pending_requests = 8
-        )
+            self.add_pcie(phy=self.pcie_phy, ndmas=1, dma_buffering_depth=1024, max_pending_requests=4)
 
-        # Wishbone bridge
-        self.pcie_bridge = LitePCIeWishboneBridge(self.pcie_endpoint,
-            base_address = self.mem_map["csr"])
-        self.bus.add_master(master=self.pcie_bridge.wishbone)
-
-        # DMA0
-        self.pcie_dma0 = LitePCIeDMA(self.pcie_phy, self.pcie_endpoint,
-            with_buffering = True, buffering_depth=1024,
-            with_loopback  = True)
-
-        # DMA1
-        self.pcie_dma1 = LitePCIeDMA(self.pcie_phy, self.pcie_endpoint,
-            with_buffering = True, buffering_depth=1024,
-            with_loopback  = True)
-
-        self.add_constant("DMA_CHANNELS", 2)
-        self.add_constant("DMA_ADDR_WIDTH", 32)
-
-        # MSI
-        self.pcie_msi = LitePCIeMSI()
-        self.comb += self.pcie_msi.source.connect(self.pcie_phy.msi)
-        self.interrupts = {
-            "PCIE_DMA0_WRITER":    self.pcie_dma0.writer.irq,
-            "PCIE_DMA0_READER":    self.pcie_dma0.reader.irq,
-            "PCIE_DMA1_WRITER":    self.pcie_dma1.writer.irq,
-            "PCIE_DMA1_READER":    self.pcie_dma1.reader.irq,
-        }
-        for i, (k, v) in enumerate(sorted(self.interrupts.items())):
-            self.comb += self.pcie_msi.irqs[i].eq(v)
-            self.add_constant(k + "_INTERRUPT", i)
-
+            # # ICAP (For FPGA reload over PCIe).
+            # from litex.soc.cores.icap import ICAP
+            # self.icap = ICAP()
+            # self.icap.add_reload()
+            # self.icap.add_timing_constraints(platform, sys_clk_freq, self.crg.cd_sys.clk)
         
         # UARTBone ---------------------------------------------------------------------------------
         platform.add_extension(picozed_z7030.uart_pmod_io("pmodz"))
@@ -188,7 +139,7 @@ class BaseSoC(SoCCore):
         os.makedirs(os.path.realpath(libxil_path), exist_ok=True)
         lib = os.path.join(libxil_path, 'embeddedsw')
         if not os.path.exists(lib):
-            os.system("git clone --depth 1 https://github.com/Xilinx/embeddedsw {}".format(lib))
+            os.system(f"git clone --depth 1 --branch xilinx_v2023.1 https://github.com/Xilinx/embeddedsw {lib}")
 
         os.makedirs(os.path.realpath(self.builder.include_dir), exist_ok=True)
         for header in [
