@@ -25,9 +25,6 @@ from litex.soc.integration.builder import *
 from litex.soc.cores.led import LedChaser
 
 from litepcie.phy.s7pciephy import S7PCIEPHY
-from litepcie.core import LitePCIeEndpoint, LitePCIeMSI
-from litepcie.frontend.dma import LitePCIeDMA
-from litepcie.frontend.wishbone import LitePCIeWishboneBridge
 from litepcie.software import generate_litepcie_software
 
 # CRG ----------------------------------------------------------------------------------------------
@@ -72,6 +69,9 @@ class BaseSoC(SoCCore):
             self.mem_map = { 
                 'csr': 0x4000_0000,  # Zynq GP0 default
             }
+        else:
+            kwargs["with_uart"]            = False
+
         SoCCore.__init__(self, platform, sys_clk_freq, ident="LiteX SoC on Picozed Z7", **kwargs)
 
        
@@ -125,6 +125,11 @@ class BaseSoC(SoCCore):
             # self.icap = ICAP()
             # self.icap.add_reload()
             # self.icap.add_timing_constraints(platform, sys_clk_freq, self.crg.cd_sys.clk)
+
+            # Test Data Ramp
+            self.comb += self.pcie_dma0.sink.valid.eq(1)
+            self.sync += If(self.pcie_dma0.sink.valid, self.pcie_dma0.sink.data.eq(self.pcie_dma0.sink.data + 1))
+
         
         # UARTBone ---------------------------------------------------------------------------------
         platform.add_extension(picozed_z7030.uart_pmod_io("pmodz"))
